@@ -1,0 +1,23 @@
+{
+  "name": "git-pulse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Git Pulse — Watch the world build software.",
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:backend": "npm run dev --workspace @git-pulse/backend",
+    "dev:frontend": "npm run dev --workspace @git-pulse/frontend",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Experiment raw data (public but bulky; derived analysis is committed)
+data/experiments/**/*.json
+data/experiments/**/*.csv
+
+# Agent skills (installed via `npx skills add`)
+.agents/
+.claude/
+skills-lock.json
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
