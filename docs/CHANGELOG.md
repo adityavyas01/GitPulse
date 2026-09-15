@@ -4,6 +4,50 @@ All meaningful project changes should be recorded here.
 
 ---
 
+# 2026-09-15 — Prototype globe integration + final integration QA
+
+Integrated the standalone `gitpulse-main` prototype globe into the existing Git Pulse frontend,
+preserving all data/behavior contracts:
+
+- **Coordinate conventions were mirrored** between the old app globe (0°→+X sphere convention) and
+  the prototype (0°→+Z with shader-derived UVs). The prototype frame is self-consistent across
+  Earth shader, astronomy, fly-to, and activity geometry, so it was adopted wholesale inside
+  `src/globe/`; app data stays plain lat/lon degrees — no data-layer, API, or backend change.
+- New globe modules: `globe/{types,earthAstronomy,Atmosphere,CloudLayer,StarField,lod,intensity,
+  activityModel}.ts(x)`, `globe/ActivityLayer.tsx` (pulse-shader InstancedMesh layer, capacity 500,
+  LOD budget via ref, zero per-frame allocation), textured day/night `Earth.tsx`, spherical flight
+  `CameraFlyTo.tsx` tracking the rotating Earth group (mount-effect registration added — the
+  prototype's module-ref was never assigned), `GlobeCanvas.tsx` with real-time sidereal rotation,
+  Earth-local sun direction, Suspense texture loading, OrbitControls clamps 1.38–4.5R.
+- Assets: `earth-surface.jpg` (2.4 MB) + `earth-night-lights-aligned.png` (139 KB) in
+  `apps/frontend/public/earth/`. Old `earth.glb` remains unused (rejected earlier).
+- Deliberate adaptations (documented, not silent): prototype's ipapi.co IP-geolocation call dropped
+  (no undocumented external request; deterministic centering kept), CloudLayer actually mounted
+  (prototype listed but never rendered it), location click-select not ported (AGENTS §3.8 forbids
+  clickable identity effects), fake-data switch removed from the globe path.
+- User's manual UI changes preserved and audited: sidebar layout/brand block (`App.tsx`), +711
+  lines of styles, `public/space/main.jpg` background, camera/orbit tuning. All data props and
+  hooks intact; no demo-data fallback; globe remains presentation-only.
+- Backend fixes found during QA (not regressions from the integration): unused `regionPart`
+  variable in `locationResolver.ts` (backend typecheck was failing); `storage.enriched.test.ts`
+  fixtures used hardcoded 2026-09-12 dates, so the 24-hour retention inside persistPipelineResult
+  deleted the just-inserted rows before assertion — fixtures now use dynamic in-window timestamps.
+- Verification: frontend typecheck + 27/27 tests + build clean (three/react vendor split intact);
+  backend typecheck + 109 unit tests + 20/20 live-DB tests; backend production build clean; E2E
+  smoke green (health/locations/activity/stats 200). E2E finding: no backend process was running —
+  latest ingested event 2026-09-13T16:13Z, ~36h stale, so 24h retention had purged all activity
+  (0 activities, 870 events retained only until purge). Correct retention behavior, not a
+  regression; restart the backend to resume live ingestion.
+- NOT VERIFIED (no browser/GPU in this environment): visual placement of Bengaluru/SF/Tokyo/
+  London/NY, day-night/cloud/atmosphere/star appearance, rotation alignment on screen, 60 FPS.
+  Code-verified only: single shared latLonToVector3 drives shader UVs, activity geometry, and
+  fly-to; activity layer is inside the rotating Earth group; stars render outside it.
+- Cleanup note (policy-blocked deletions): `globe/effects/StarField.tsx` (superseded by
+  `globe/StarField.tsx`), `globe/effects/intensity.ts` (superseded by `globe/intensity.ts`),
+  `globe/fakeActivity.ts` (no production reference) have zero importers — safe manual removal.
+
+---
+
 # 2026-09-11 — Week 13: Visual Polish + Final QA
 
 Implemented Milestone 4 / Week 13 (final planned roadmap stage) per ROADMAP.md and UI_SPEC:

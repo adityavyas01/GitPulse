@@ -10,7 +10,10 @@ import type { GithubConfig } from '../src/github/config.js';
 import { loadConfig } from '../src/index.js';
 
 const RUN = process.env.RUN_DB_INTEGRATION_TESTS === 'true';
-const d = (t: number) => new Date(Date.UTC(2026, 8, 12, 9, t, 0)).toISOString();
+// Dynamic timestamps: retention (24h by ingested_at) runs inside
+// persistPipelineResult, so fixtures must stay inside the live window.
+const base = Date.now();
+const d = (minutesAgo: number) => new Date(base - minutesAgo * 60000).toISOString();
 
 function makeEvent(id: number, userId: number, repoId: number): ActivityEvent {
   return {
@@ -18,8 +21,8 @@ function makeEvent(id: number, userId: number, repoId: number): ActivityEvent {
     source: 'github',
     eventType: 'PUSH',
     eventAction: null,
-    eventTime: d(id),
-    ingestedAt: d(60),
+    eventTime: d(60 - id),
+    ingestedAt: d(1),
     userId,
     repositoryId: repoId,
     locationId: null,

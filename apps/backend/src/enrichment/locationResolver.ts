@@ -70,7 +70,6 @@ function lookup(normalized: string): LocationRecord[] {
     const tokens = normalized.split(' ');
     for (let take = tokens.length - 1; take >= 1; take--) {
       const cityPart = tokens.slice(0, take).join(' ');
-      const regionPart = tokens.slice(take).join(' ');
       const cityMatches = LOCATION_CATALOG.filter(
         (loc) => normalizeLocationString(loc.city) === cityPart
       );

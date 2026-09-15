@@ -115,6 +115,7 @@ It does not visualize:
 - [x] Week 11 — Filters + Search (language/activityType selects flow into both live REST polling and timeline replay fetches; location search over plot-ready catalog-backed locations with smooth damped camera fly-to; filters serialize to documented /api/activity parameters; 18 frontend tests)
 - [x] Week 12 — Performance + LOD (single InstancedMesh pool of 500 — one draw call, zero per-frame allocation; global/regional/city LOD tiers with intensity-sorted selection; horizon visibility culling; deterministic per-location pulse phase; FPS instrumentation overlay; vendor chunk splitting — app bundle 1119→16.5 kB, three/react cached separately; 25 frontend tests)
 - [x] Week 13 — Visual polish + final QA (GLB candidate evaluated and rejected — see CHANGELOG; frame-rate-independent fly-to damping; dead code removed — StarField ref, CityPulse.tsx deleted; restrained UI polish — compact translucent header/footer/timeline with backdrop blur, header stats line, search-result shadow; full QA gate: typecheck/tests/build/E2E/secrets/contract checks green, fake data verified dev-only-gated, Week 12 performance architecture intact)
+- [x] Prototype globe integration (2026-09-15) — standalone gitpulse-main visual engine adopted into apps/frontend: textured day/night Earth, aligned night lights, clouds, atmosphere, stars, real-time sidereal rotation, spherical fly-to tracking the rotating Earth group; prototype coordinate frame (0°→+Z) adopted inside the globe after audit found the old app frame mirrored; app data stays plain lat/lon so no API/data-contract change. Week 12 performance architecture preserved (InstancedMesh 500 cap, LOD 80/240/500 via ref, pooling, FPS overlay). User's manual UI changes (sidebar layout, styles, space background, camera tuning) preserved. Visual on-screen checks (city placement, day/night, 60 FPS) NOT VERIFIED — no browser/GPU in the agent environment.
 
 ### In progress
 
@@ -128,6 +129,7 @@ None.
 
 - `DATABASE_URL` default uses host port 5433 (docker-compose mapping); host port 5432 is occupied by a machine-local PostgreSQL 17 service (documented since Week 1).
 - Week 13 corrective fix: enrichment stage was originally missing from the live ingestion path (events persisted unenriched, buckets all 'unknown'). Now wired via `persistEnrichedResult` (`db/storage.ts`) with deps created once in `index.ts`; verified by `test/storage.enriched.test.ts`. Post-fix live evidence: language enrichment lands (56/90 events); profile-location resolution executes but currently yields 0 matches against the 12-city catalog — rows predating the fix remain unenriched.
+- 2026-09-15: an evidence-based catalog expansion (12→68 curated cities, driven by a 1000-unique-event location experiment in `data/experiments/github/2026-09-12/`) hardened `locationResolver.ts` (comma-spacing normalization, `city region` two-token and `city, region, country` multi-part forms, explicit country-synonym/state-qualifier aliases; bare contradictions like "Paris, Texas" deliberately stay unresolved).
 
 ### Test status
 
