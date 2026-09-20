@@ -121,10 +121,10 @@ import { Suspense, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Group } from 'three';
+import * as THREE from 'three';
 
 import { Earth } from './Earth.js';
-import { Atmosphere } from './Atmosphere.js';
-import { CloudLayer } from './CloudLayer.js';
+// import { Atmosphere } from './Atmosphere.js';
 import { StarField } from './StarField.js';
 import { ActivityLayer } from './ActivityLayer.js';
 import { CameraFlyTo, flyToEarthGroup } from './CameraFlyTo.js';
@@ -145,10 +145,13 @@ import {
  */
 export function GlobeCanvas({
   locations,
-  flyToTarget = null
+  flyToTarget = null,
+  visualizationTime = null
 }: {
   locations: import('../api/globeActivity.js').GlobeActivityLocation[];
   flyToTarget?: { latitude: number; longitude: number; seq: number } | null;
+  /** Timeline-selected time for day/night shading; null = LIVE (real time). */
+  visualizationTime?: Date | null;
 }) {
   return (
     <Canvas
@@ -159,7 +162,11 @@ export function GlobeCanvas({
       <PerformanceTracker />
 
       <Suspense fallback={null}>
-        <Scene locations={locations} flyToTarget={flyToTarget} />
+        <Scene
+          locations={locations}
+          flyToTarget={flyToTarget}
+          visualizationTime={visualizationTime}
+        />
       </Suspense>
     </Canvas>
   );
@@ -180,10 +187,12 @@ function PerformanceTracker() {
 
 function Scene({
   locations,
-  flyToTarget
+  flyToTarget,
+  visualizationTime
 }: {
   locations: import('../api/globeActivity.js').GlobeActivityLocation[];
   flyToTarget: { latitude: number; longitude: number; seq: number } | null;
+  visualizationTime: Date | null;
 }) {
   const earth = useRef<Group>(null);
   const budget = useRef<Budget>(80);
@@ -193,7 +202,7 @@ function Scene({
   const initialRotation = getCenteringRotationY(INDIA_LONGITUDE);
   const rotationRef = useRef(initialRotation);
   const lastTimestamp = useRef(Date.now());
-  const sunDirection = useRef(getRealTimeEarthState().sunDirection);
+  const sunDirection = useRef(new THREE.Vector3());
 
   // Register the rotating group so CameraFlyTo can track it across frames.
   useEffect(() => {
@@ -215,8 +224,12 @@ function Scene({
     rotationRef.current += siderealRate * elapsed;
     earthGroup.rotation.y = rotationRef.current;
 
-    // Sun direction is Earth-local; rotation only spins the mesh.
-    sunDirection.current = getRealTimeEarthState(new Date(now)).sunDirection;
+    // Sun direction is Earth-local; rotation only spins the mesh. The
+    // astronomy input is the timeline-selected time in replay, real time in
+    // LIVE — day/night shading always matches the rendered activity slot.
+    sunDirection.current.copy(
+      getRealTimeEarthState(visualizationTime ?? new Date(now)).sunDirection
+    );
 
     // LOD budget re-evaluation per frame; consumers read the ref (no React
     // state updates in the render path — Week 12 architecture).
@@ -229,9 +242,8 @@ function Scene({
 
       <group ref={earth}>
         <Earth sunDirection={sunDirection.current} />
-        <CloudLayer />
         <ActivityLayer locations={locations} lodBudgetRef={budget} />
-        <Atmosphere />
+        {/* <Atmosphere /> */}
       </group>
 
       <OrbitControls
@@ -239,7 +251,7 @@ function Scene({
         enablePan={false}
         enableDamping
         dampingFactor={0.075}
-        rotateSpeed={0.45}
+        rotateSpeed={1}
         zoomSpeed={0.65}
         minDistance={1.38}
         maxDistance={MAX_CAMERA_DISTANCE}

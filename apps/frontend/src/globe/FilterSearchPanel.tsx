@@ -5,7 +5,7 @@ import type { ActivityFilters, GlobeActivityLocation } from '../api/globeActivit
 interface FilterSearchPanelProps {
   filters: ActivityFilters;
   onFilters: (next: ActivityFilters) => void;
-  slots: Array<{ locations: GlobeActivityLocation[] }>;
+  catalog: GlobeActivityLocation[];
   currentLocations: GlobeActivityLocation[];
   onFlyTo: (target: { latitude: number; longitude: number }) => void;
 }
@@ -35,14 +35,14 @@ const ACTIVITY_TYPES = [
 
 /**
  * Week 11 (UI_SPEC §9 + §7): language/activity filter selects and a
- * location search over the authoritative catalog. Selecting a search
- * result flies the camera to that location (smooth fly-to). Search only
- * ever offers catalog-backed, plottable locations — never fabricated ones.
+ * location search over the full authoritative catalog — zero-activity
+ * locations stay searchable, and selection always flies the camera there.
+ * Catalog-backed, plottable entries only; search never creates activity.
  */
 export function FilterSearchPanel({
   filters,
   onFilters,
-  slots,
+  catalog,
   currentLocations,
   onFlyTo
 }: FilterSearchPanelProps) {
@@ -52,24 +52,40 @@ export function FilterSearchPanel({
   // Language options per UI_SPEC §9 (catalog-level language filter).
   const languageOptions = useMemo(() => LANGUAGES.map((l) => l.toLowerCase()), []);
 
-  // Location search over currently visible (plot-ready) locations.
+  // Full-catalog search (UI_SPEC §9): includes zero-activity locations.
+  // Slots/currentLocations props were replaced by the catalog for search;
+  // they remain available to callers for active-location indication.
+  const activeIds = useMemo(
+    () => new Set(currentLocations.map((l) => l.locationId)),
+    [currentLocations]
+  );
+
+  // Dropdown list: all catalog locations (active first) when opened without
+  // a query; filtered matches while typing. Full list capped for scroll.
+  const activeFirst = (a: GlobeActivityLocation, b: GlobeActivityLocation) => {
+    const activeDiff =
+      Number(activeIds.has(b.locationId)) - Number(activeIds.has(a.locationId));
+    if (activeDiff !== 0) return activeDiff;
+    return a.city.localeCompare(b.city);
+  };
+
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (q.length === 0) return [];
-    const pool = currentLocations.length > 0 ? currentLocations : slots.flatMap((s) => s.locations);
-    const seen = new Map<string, GlobeActivityLocation>();
-    for (const loc of pool) {
-      if (!seen.has(loc.locationId)) seen.set(loc.locationId, loc);
-    }
-    return [...seen.values()]
+    return catalog
       .filter(
         (l) =>
           l.city.toLowerCase().includes(q) ||
           l.country.toLowerCase().includes(q) ||
           l.locationId.includes(q)
       )
-      .slice(0, 6);
-  }, [search, currentLocations, slots]);
+      .sort(activeFirst)
+      .slice(0, 40);
+  }, [search, catalog, activeIds]);
+
+  const listItems = search.trim().length === 0
+    ? [...catalog].sort(activeFirst).slice(0, 40)
+    : matches;
 
   return (
     <div className="filter-panel">
@@ -105,21 +121,36 @@ export function FilterSearchPanel({
 
       <div className="filter-field search-field">
         <span>Search</span>
-        <input
-          type="search"
-          placeholder="Search locations…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-          aria-label="Search locations"
-        />
-        {open && matches.length > 0 && (
+        <div className="search-row">
+          <input
+            type="search"
+            placeholder="Search locations…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+            aria-label="Search locations"
+          />
+          <button
+            type="button"
+            className="search-toggle"
+            aria-label="Show all locations"
+            aria-expanded={open}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setSearch('');
+              setOpen((v) => !v);
+            }}
+          >
+            ▼
+          </button>
+        </div>
+        {open && listItems.length > 0 && (
           <ul className="search-results" role="listbox">
-            {matches.map((m) => (
+            {listItems.map((m) => (
               <li key={m.locationId}>
                 <button
                   type="button"
@@ -131,6 +162,9 @@ export function FilterSearchPanel({
                   }}
                 >
                   {m.city}, {m.country}
+                  <span className={"search-badge" + (activeIds.has(m.locationId) ? " active" : "")}>
+                    {activeIds.has(m.locationId) ? '● Active' : '○ Inactive'}
+                  </span>
                 </button>
               </li>
             ))}

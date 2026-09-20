@@ -91,6 +91,13 @@ export function useTimeline() {
   const locations: GlobeActivityLocation[] =
     mode === 'replay' && currentSlot ? currentSlot.locations : liveLocations;
 
+  // Visualization clock for the globe's day/night astronomy: the selected
+  // slot's timestamp in replay, null (→ real current time) in LIVE.
+  // Presentational only — activity data and bucket semantics are untouched.
+  const visualizationTime: Date | null = currentSlot
+    ? new Date(currentSlot.time)
+    : null;
+
   const applyFilters = useCallback((next: ActivityFilters) => {
     setFilters(next);
   }, []);
@@ -99,6 +106,7 @@ export function useTimeline() {
     () => ({
       mode,
       locations,
+      visualizationTime,
       slots,
       index,
       playing,
@@ -111,6 +119,6 @@ export function useTimeline() {
       returnToLive,
       togglePlay
     }),
-    [mode, locations, slots, index, playing, loading, failed, filters, applyFilters, currentSlot, enterReplay, returnToLive, togglePlay]
+    [mode, locations, visualizationTime, slots, index, playing, loading, failed, filters, applyFilters, currentSlot, enterReplay, returnToLive, togglePlay]
   );
 }

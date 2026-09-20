@@ -23,6 +23,7 @@ export interface LiveHubOptions {
 
 export class LiveHub {
   private wss: WebSocketServer;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
 
   constructor(httpServer: HttpServer, private readonly options: LiveHubOptions) {
     this.wss = new WebSocketServer({ noServer: true });
@@ -86,9 +87,14 @@ export class LiveHub {
       }
     }, intervalMs);
     timer.unref();
+    this.heartbeatTimer = timer;
   }
 
   close(): Promise<void> {
+    if (this.heartbeatTimer !== null) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
     return new Promise((resolve) => this.wss.close(() => resolve()));
   }
 }

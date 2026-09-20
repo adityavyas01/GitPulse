@@ -53,6 +53,28 @@ export function filtersToQuery(filters?: ActivityFilters): string {
 }
 
 /**
+ * Fetch the full location catalog (all plot-ready known locations),
+ * independent of current activity. Powers location search over zero-activity
+ * cities; count is always 0 — no activity is implied or fabricated.
+ */
+export async function fetchLocationCatalog(
+  signal: AbortSignal
+): Promise<GlobeActivityLocation[]> {
+  const locations = await fetchJson<{ locations: LocationRecord[] }>(
+    '/api/locations',
+    signal
+  );
+  return locations.locations.map((record) => ({
+    locationId: record.id,
+    city: record.city,
+    country: record.country,
+    latitude: record.latitude,
+    longitude: record.longitude,
+    count: 0
+  }));
+}
+
+/**
  * Fetch recent activity buckets and the location catalog, join them into
  * plot-ready locations sorted by activity count. Unknown/unresolved
  * location ids are dropped (not plottable), never guessed coordinates.

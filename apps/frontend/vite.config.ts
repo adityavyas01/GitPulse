@@ -22,7 +22,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // Frontend consumes the backend API same-origin in development.
-      '/api': { target: 'http://localhost:3000', changeOrigin: true }
+      // ws: true forwards the /api/live WebSocket upgrade to Fastify.
+      '/api': { target: 'http://localhost:3000', changeOrigin: true, ws: true }
     }
   }
 });

@@ -212,3 +212,30 @@ Kafka and multi-region architecture are reserved for genuine large-scale require
 Reason:
 
 Premature distributed architecture adds complexity without improving the V1 product.
+
+---
+
+# ADR-017 — Deployment topology
+
+Decision:
+
+V1 deploys as one backend VM (OCI Always Free A1) running the production stack
+via Docker Compose — Fastify backend, PostgreSQL 16, Redis 7, nginx 1.27 — with
+TLS terminated by nginx (Let's Encrypt, issued by deploy/cert-init.sh) and the
+frontend hosted as a static Vercel deployment pointed at the backend origin via
+VITE_API_URL.
+
+Reason:
+
+ADR-014 already fixed the single-backend shape and ADR-015/016 defer scaling.
+Compose on one free-tier VM adds no distributed infrastructure, requires no
+paid services, and keeps the system reproducible from the repository
+(deploy/docker-compose.prod.yml + docs/DEPLOYMENT.md).
+
+Consequences:
+
+- PostgreSQL and Redis are never published to the host or the internet.
+- Port 80 serves ACME challenges and plain HTTP until certificates exist; the
+  443 TLS config ships disabled and cert-init.sh enables it after issuance.
+- The VM is a single point of failure for V1; accepted for V1 scope.
+- Scaling out later means revisiting ADR-015, not changing this topology piecemeal.

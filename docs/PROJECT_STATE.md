@@ -116,6 +116,7 @@ It does not visualize:
 - [x] Week 12 — Performance + LOD (single InstancedMesh pool of 500 — one draw call, zero per-frame allocation; global/regional/city LOD tiers with intensity-sorted selection; horizon visibility culling; deterministic per-location pulse phase; FPS instrumentation overlay; vendor chunk splitting — app bundle 1119→16.5 kB, three/react cached separately; 25 frontend tests)
 - [x] Week 13 — Visual polish + final QA (GLB candidate evaluated and rejected — see CHANGELOG; frame-rate-independent fly-to damping; dead code removed — StarField ref, CityPulse.tsx deleted; restrained UI polish — compact translucent header/footer/timeline with backdrop blur, header stats line, search-result shadow; full QA gate: typecheck/tests/build/E2E/secrets/contract checks green, fake data verified dev-only-gated, Week 12 performance architecture intact)
 - [x] Prototype globe integration (2026-09-15) — standalone gitpulse-main visual engine adopted into apps/frontend: textured day/night Earth, aligned night lights, clouds, atmosphere, stars, real-time sidereal rotation, spherical fly-to tracking the rotating Earth group; prototype coordinate frame (0°→+Z) adopted inside the globe after audit found the old app frame mirrored; app data stays plain lat/lon so no API/data-contract change. Week 12 performance architecture preserved (InstancedMesh 500 cap, LOD 80/240/500 via ref, pooling, FPS overlay). User's manual UI changes (sidebar layout, styles, space background, camera tuning) preserved. Visual on-screen checks (city placement, day/night, 60 FPS) NOT VERIFIED — no browser/GPU in the agent environment.
+- [x] Visual QA pass (2026-09-15) — browser-reported issues fixed: polar seam line root-caused to ClampToEdge UV wrapping at the ±180° meridian (both textures now RepeatWrapping); location search expanded to the full /api/locations catalog (zero-activity cities searchable, active/inactive badges, fly-to on inactive never fabricates activity); atmosphere toned to a subtle limb glow; cloud layer made subtly visible; FPS overlay gated to dev builds. Full verification green (frontend 27/27 + build; backend 109 + 20/20 live-DB + build; E2E with live data). On-screen re-confirmation of the seam/atmosphere/clouds remains with the user.
 
 ### In progress
 
@@ -137,4 +138,4 @@ Canonical `npm test`: 110 backend tests passing across 23 files, 15 database-dep
 
 ### Deployment status
 
-Not deployed. Local verification only.
+Not deployed. Local verification only. Graceful shutdown (SIGTERM/SIGINT: scheduler stop → hub close → Fastify close → pool end) implemented for process-manager readiness.

@@ -22,6 +22,7 @@ data/experiments/**/*.csv
 # Agent skills (installed via `npx skills add`)
 .agents/
 .claude/
+.superbrain/
 skills-lock.json
 
 # Editor / OS

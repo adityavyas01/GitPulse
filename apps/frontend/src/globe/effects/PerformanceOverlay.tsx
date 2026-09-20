@@ -12,5 +12,8 @@ export function PerformanceOverlay() {
 
   useEffect(() => subscribeFps(setFps), []);
 
+  // Dev-only instrumentation: never rendered for production users.
+  if (!import.meta.env.DEV) return null;
+
   return <div className="perf-overlay">{fps > 0 ? `${fps} FPS` : ''}</div>;
 }

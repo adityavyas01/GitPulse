@@ -131,11 +131,29 @@ export async function startServer(config: AppConfig = loadConfig()) {
     app.log.error(err, 'failed to start server');
     process.exit(1);
   }
-  return app;
+  return { app, pool, liveHub, scheduler };
 }
 
 // Allow direct execution without triggering on imports/tests.
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop() ?? '');
 if (isMain) {
-  startServer();
+  const { app, pool, liveHub, scheduler } = await startServer();
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    app.log.info({ signal }, 'shutting down');
+    await scheduler.stop();
+    try {
+      await liveHub?.close();
+      await app.close();
+      await pool.end();
+      process.exit(0);
+    } catch (err) {
+      app.log.error(err, 'error during shutdown');
+      process.exit(1);
+    }
+  };
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }

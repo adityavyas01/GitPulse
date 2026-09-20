@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import {
   AdditiveBlending,
   DynamicDrawUsage,
@@ -84,6 +85,12 @@ interface Props {
  */
 export function ActivityLayer({ locations, lodBudgetRef }: Props) {
   const mesh = useRef<InstancedMesh>(null);
+  const { gl } = useThree();
+
+  // Hover tooltip state (pointer → instanceId via raycast; id → city/count
+  // via a locationId lookup). Null when not hovering an active instance.
+  const [hover, setHover] = useState<{ city: string; count: number } | null>(null);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
 
   const ranked = useMemo(
     () =>
@@ -131,6 +138,35 @@ export function ActivityLayer({ locations, lodBudgetRef }: Props) {
   );
 
   const uniforms = useMemo(() => ({ time: { value: 0 } }), []);
+
+  // locationId → display info for the tooltip; rebuilt when data changes.
+  const infoById = useMemo(() => {
+    const map = new Map<string, { city: string; count: number }>();
+    for (const l of locations) {
+      if (l.count > 0) map.set(l.locationId, { city: l.city, count: l.count });
+    }
+    return map;
+  }, [locations]);
+
+  // instanceId → locationId follows the pool slot assignment in the effect
+  // below; captured at pointer time from the pool array.
+  const handlePointerMove = (e: { instanceId?: number; clientX: number; clientY: number }) => {
+    const id = e.instanceId;
+    const rect = gl.domElement.getBoundingClientRect();
+    // Html anchors at projected world origin = canvas center (OrbitControls
+    // targets the globe center), so the offset is measured from the center.
+    setHoverPos({
+      x: e.clientX - rect.left - rect.width / 2,
+      y: e.clientY - rect.top - rect.height / 2
+    });
+    if (id === undefined || id < 0) {
+      setHover(null);
+      return;
+    }
+    const slotId = pool[id]?.id;
+    const info = slotId ? infoById.get(slotId) : undefined;
+    setHover(info ?? null);
+  };
 
   useEffect(() => {
     if (!mesh.current) return;
@@ -204,12 +240,11 @@ export function ActivityLayer({ locations, lodBudgetRef }: Props) {
 
       const visibility = facing > 0 ? slot.fade : 0;
 
-      scratch.object.position.copy(slot.normal).multiplyScalar(1.014);
-
-      scratch.object.quaternion.setFromUnitVectors(scratch.z, slot.normal);
-
       const strength = normalizedIntensity(slot.count);
 
+      // Pulse quad (ring/core), tangent to the surface.
+      scratch.object.position.copy(slot.normal).multiplyScalar(1.014);
+      scratch.object.quaternion.setFromUnitVectors(scratch.z, slot.normal);
       scratch.object.scale.setScalar((0.075 + strength * 0.055) * visibility);
       scratch.object.updateMatrix();
       layer.setMatrixAt(i, scratch.object.matrix);
@@ -219,11 +254,14 @@ export function ActivityLayer({ locations, lodBudgetRef }: Props) {
   });
 
   return (
+    <>
     <instancedMesh
       ref={mesh}
       args={[undefined, undefined, ACTIVITY_CAPACITY]}
       frustumCulled={false}
       renderOrder={4}
+      onPointerMove={handlePointerMove}
+      onPointerOut={() => setHover(null)}
     >
       <planeGeometry args={[1, 1]}>
         <primitive attach="attributes-pulse" object={attributes} />
@@ -239,5 +277,22 @@ export function ActivityLayer({ locations, lodBudgetRef }: Props) {
         depthTest
       />
     </instancedMesh>
+      {hover && hoverPos && (
+        <Html
+          position={[0, 0, 0]}
+          center
+          style={{
+            pointerEvents: 'none',
+            transform: `translate(${hoverPos.x}px, ${hoverPos.y}px)`,
+            zIndex: 10
+          }}
+        >
+          <div className="activity-tooltip">
+            <span className="activity-tooltip-city">{hover.city}</span>
+            <span className="activity-tooltip-count">{hover.count} activities</span>
+          </div>
+        </Html>
+      )}
+    </>
   );
 }

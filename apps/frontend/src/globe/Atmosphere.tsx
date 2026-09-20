@@ -20,25 +20,23 @@ const fragmentShader = `
     vec3 normal = normalize(vNormal);
     vec3 viewDir = normalize(vView);
 
-    float rim = 1.0 - max(dot(normal, viewDir), 0.0);
-    rim = pow(rim, 3.6);
+    // d: 0 at the shell's outer silhouette, 1 looking through its center.
+    // Alpha rises smoothly from 0 at the hard outer edge, peaks just inside
+    // the limb, and decays to ~0 inward — a gradient, never a border.
+    float d = abs(dot(normal, viewDir));
 
-    float inner = pow(rim, 1.8) * 0.26;
-    float outer = pow(rim, 5.0) * 0.68;
+    float rise = smoothstep(0.0, 0.22, d);
+    float fall = 1.0 - smoothstep(0.38, 0.95, d);
 
-    vec3 blue = vec3(0.10, 0.43, 0.82);
-    vec3 cyan = vec3(0.18, 0.68, 1.0);
+    vec3 haze = vec3(0.30, 0.52, 0.78);
 
-    vec3 color = mix(blue, cyan, outer);
-    float alpha = inner + outer;
-
-    gl_FragColor = vec4(color, alpha * 0.42);
+    gl_FragColor = vec4(haze, rise * fall * 0.27);
   }
 `;
 
 export function Atmosphere() {
   return (
-    <mesh scale={1.035} renderOrder={3}>
+    <mesh scale={1.06} renderOrder={3}>
       <sphereGeometry args={[1, 96, 64]} />
       <shaderMaterial
         transparent

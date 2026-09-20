@@ -4,6 +4,55 @@ All meaningful project changes should be recorded here.
 
 ---
 
+# 2026-09-15 — Graceful shutdown (deployment readiness)
+
+- `index.ts`: on SIGTERM/SIGINT (direct execution only) the scheduler stops, the WebSocket hub closes, Fastify closes, and the pg pool ends — clean exit for process managers.
+- `live/hub.ts`: `LiveHub` now tracks its heartbeat interval and clears it in `close()` (previously the 30 s timer leaked past shutdown).
+- `startServer()` returns `{ app, pool, liveHub, scheduler }` (only caller is the direct-execution block in `index.ts`; no tests depend on the old `app`-only return).
+
+Verification: backend `tsc --noEmit` clean.
+
+---
+
+# 2026-09-15 — Visual QA pass (browser-reported issues)
+
+Fixes from the user's visual test of the integrated globe:
+
+- **Polar seam line (root cause fixed, not masked):** the Earth/night-light textures used
+  three.js default `ClampToEdgeWrapping`; the shader samples UVs across the ±180° meridian,
+  so clamped edge texels blended into a dashed near-polar line. Both textures now use
+  `RepeatWrapping` (`Earth.tsx`).
+- **Location search over the full catalog:** new `fetchLocationCatalog()` (`api/globeActivity.ts`)
+  fetches `GET /api/locations` once; `FilterSearchPanel` now searches every catalog city
+  (zero-activity included), shows city+country with an active/inactive badge, and flying to an
+  inactive location still works (camera-only — never creates activity). Search results rank
+  active locations first.
+- **Atmosphere toned down:** lower alpha (0.42→0.34), tighter falloff (rim^3.6→^5.2), desaturated
+  blues — reads as a subtle limb glow instead of a blue outline.
+- **Cloud layer made subtly visible:** alpha 0.035–0.09 → 0.10–0.24 and a slightly wider
+  coverage threshold — a faint, geographically-aligned drift layer distinct from the baked
+  surface texture.
+- **FPS overlay is dev-only:** `import.meta.env.DEV` gate (`PerformanceOverlay.tsx`); production
+  builds render nothing. Added `src/vite-env.d.ts` for the vite client types.
+
+Day/night audit (no change needed): `earthAstronomy.ts` computes real RA/declination/GMST; the
+sun direction updates every frame and the shader mixes day/night dynamically — the terminator
+moves at the true solar rate.
+
+Activity lifetime (report-only, matches product intent): each location gets ONE pulse object
+(not per event); ring phase loops continuously while a location stays active
+(`time * (0.24 + intensity*0.16) + stablePhase` in `ActivityLayer.tsx`); when a location drops
+out of the activity set, `slot.count=0` → fade target 0 → smooth ~130 ms exponential fade-out,
+then the pooled slot is reused. LIVE and replay are identical mechanics — replay feeds the same
+layer with historical slot counts.
+
+Verification: frontend typecheck + 27/27 tests + build clean; backend typecheck + 109 unit +
+20/20 live-DB tests + build clean; E2E smoke green with live data (477 activities, 19 active
+locations, topCity "sgp" — the expanded catalog is resolving real cities). Visual re-check of
+the polar line, atmosphere, and clouds requires the user's browser.
+
+---
+
 # 2026-09-15 — Prototype globe integration + final integration QA
 
 Integrated the standalone `gitpulse-main` prototype globe into the existing Git Pulse frontend,
