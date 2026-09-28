@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import type { FastifyBaseLogger } from 'fastify';
+import cors from '@fastify/cors';
 import pg from 'pg';
 
 import { registerHealthRoutes } from './routes/health.js';
@@ -20,6 +21,7 @@ export interface AppConfig {
   logLevel: string;
   databaseUrl: string;
   redisUrl: string;
+  corsOrigin: string | null;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -30,7 +32,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     // Host port 5433: docker-compose mapping (local 5432 is occupied by a
     // machine-local PostgreSQL service — see PROJECT_STATE deviations).
     databaseUrl: env.DATABASE_URL ?? 'postgres://gitpulse:gitpulse@localhost:5433/gitpulse',
-    redisUrl: env.REDIS_URL ?? 'redis://localhost:6379'
+    redisUrl: env.REDIS_URL ?? 'redis://localhost:6379',
+    // Exact allowed browser origin (e.g. https://gitpulse3d.vercel.app).
+    // Unset: no CORS headers (local dev is same-origin via the Vite proxy).
+    corsOrigin: env.CORS_ORIGIN?.trim() || null
   };
 }
 
@@ -54,6 +59,10 @@ export async function createServer(config: AppConfig) {
   };
 
   registerHealthRoutes(app, deps);
+
+  if (config.corsOrigin) {
+    await app.register(cors, { origin: config.corsOrigin });
+  }
 
   // API routes accept a pool so tests can supply their own database.
   const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 5 });
