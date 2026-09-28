@@ -3,6 +3,7 @@
  * data (activity_buckets via /api/activity), never new GitHub queries.
  * Retention is 24 hours, so replay range is bounded the same way.
  */
+import { apiUrl } from './apiBase.js';
 import type { ActivityFilters, GlobeActivityLocation } from './globeActivity.js';
 
 export const TIMELINE_BUCKETS = 96; // 24h / 15min (UI_SPEC §8)
@@ -30,7 +31,7 @@ export interface TimelineSlot {
 }
 
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const res = await fetch(url, { signal });
+  const res = await fetch(apiUrl(url), { signal });
   if (!res.ok) {
     throw new Error(`API ${url} failed: ${res.status}`);
   }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { wsUrl } from '../api/apiBase.js';
 
 /**
  * Week 9 — WebSocket live updates (WS /api/live). Receives compact,
@@ -32,8 +33,7 @@ export function useLiveSocket(enabled = true): { connected: boolean; last: LiveM
 
     const connect = () => {
       if (closed) return;
-      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      ws = new WebSocket(`${proto}://${window.location.host}/api/live`);
+      ws = new WebSocket(wsUrl('/api/live'));
 
       ws.onopen = () => {
         attemptRef.current = 0;

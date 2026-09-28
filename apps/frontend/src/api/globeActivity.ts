@@ -29,8 +29,10 @@ interface LocationRecord {
   longitude: number;
 }
 
+import { apiUrl } from './apiBase.js';
+
 async function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const res = await fetch(url, { signal });
+  const res = await fetch(apiUrl(url), { signal });
   if (!res.ok) {
     throw new Error(`API ${url} failed: ${res.status}`);
   }
