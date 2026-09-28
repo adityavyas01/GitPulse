@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiUrl } from '../api/apiBase.js';
 
 /**
  * Community pulse — compact activity summary below location search.
@@ -24,7 +25,7 @@ export function CommunityPulse(_: Props) {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch('/api/stats', { signal: controller.signal })
+    fetch(apiUrl('/api/stats'), { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`stats ${res.status}`);
         return res.json() as Promise<Stats>;
