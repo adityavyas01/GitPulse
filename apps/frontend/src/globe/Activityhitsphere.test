@@ -1,0 +1,78 @@
+import { describe, expect, it } from 'vitest';
+import {
+  InstancedMesh,
+  Object3D,
+  PlaneGeometry,
+  Raycaster,
+  ShaderMaterial,
+  Vector3,
+} from 'three';
+
+import { ACTIVITY_HIT_RADIUS, createActivityHitSphere } from './activityHitSphere.js';
+import { latLonToVector3 } from './coordinates.js';
+import { ACTIVITY_CAPACITY } from './lod.js';
+
+/** Mirrors ActivityLayer: one pooled quad per slot, all-zero until data. */
+function makeLayer() {
+  const mesh = new InstancedMesh(new PlaneGeometry(1, 1), new ShaderMaterial(), ACTIVITY_CAPACITY);
+  // useFrame writes scale-0 matrices for every empty slot before data exists.
+  const zero = new Object3D();
+  zero.scale.setScalar(0);
+  zero.updateMatrix();
+  for (let i = 0; i < ACTIVITY_CAPACITY; i++) mesh.setMatrixAt(i, zero.matrix);
+  return mesh;
+}
+
+function placeMarker(mesh: InstancedMesh, slot: number, lat: number, lon: number) {
+  const normal = latLonToVector3(lat, lon);
+  const o = new Object3D();
+  o.position.copy(normal).multiplyScalar(1.014);
+  o.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), normal);
+  o.scale.setScalar(0.13);
+  o.updateMatrix();
+  mesh.setMatrixAt(slot, o.matrix);
+  mesh.instanceMatrix.needsUpdate = true;
+  return o.position.clone();
+}
+
+function hoverInstance(mesh: InstancedMesh, target: Vector3) {
+  const origin = new Vector3(0, 0.35, 3.0);
+  const ray = new Raycaster(origin, target.clone().sub(origin).normalize());
+  mesh.updateMatrixWorld(true);
+  return ray.intersectObject(mesh, false)[0]?.instanceId;
+}
+
+describe('activity hover raycast bounds', () => {
+  it('reproduces the bug: a raycast before data is loaded caches an empty sphere', () => {
+    const mesh = makeLayer();
+    // First pointer move happens while every instance matrix is still zero.
+    mesh.updateMatrixWorld(true);
+    new Raycaster(new Vector3(0, 0.35, 3), new Vector3(0, 0, -1)).intersectObject(mesh, false);
+    expect(mesh.boundingSphere?.radius).toBe(0);
+
+    // Data arrives afterwards; hover on the marker can no longer hit.
+    const at = placeMarker(mesh, 3, 10, 0);
+    expect(hoverInstance(mesh, at)).toBeUndefined();
+  });
+
+  it('with the fixed sphere, hover resolves the correct instanceId even after an early raycast', () => {
+    const mesh = makeLayer();
+    mesh.boundingSphere = createActivityHitSphere();
+
+    mesh.updateMatrixWorld(true);
+    new Raycaster(new Vector3(0, 0.35, 3), new Vector3(0, 0, -1)).intersectObject(mesh, false);
+    expect(mesh.boundingSphere.radius).toBe(ACTIVITY_HIT_RADIUS);
+
+    const a = placeMarker(mesh, 3, 10, 0);
+    const b = placeMarker(mesh, 42, -20, -25); // a later, different location
+    expect(hoverInstance(mesh, a)).toBe(3);
+    expect(hoverInstance(mesh, b)).toBe(42);
+  });
+
+  it('encloses the outermost extent of any instance', () => {
+    const sphere = createActivityHitSphere();
+    const maxExtent = 1.014 + 0.13 * Math.SQRT1_2;
+    expect(sphere.center.equals(new Vector3(0, 0, 0))).toBe(true);
+    expect(sphere.radius).toBeGreaterThan(maxExtent);
+  });
+});

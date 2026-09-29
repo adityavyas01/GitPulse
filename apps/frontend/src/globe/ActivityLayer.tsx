@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import {
@@ -15,6 +15,7 @@ import { latLonToVector3, stableUnit } from './coordinates.js';
 import { normalizedIntensity } from './intensity.js';
 import { ACTIVITY_CAPACITY, type Budget } from './lod.js';
 import { rankedActivities } from './activityModel.js';
+import { createActivityHitSphere } from './activityHitSphere.js';
 
 const vertexShader = `
   attribute vec3 pulse;
@@ -167,6 +168,13 @@ export function ActivityLayer({ locations, lodBudgetRef }: Props) {
     const info = slotId ? infoById.get(slotId) : undefined;
     setHover(info ?? null);
   };
+
+  // Fixed raycast bounds: three caches InstancedMesh.boundingSphere on the
+  // first raycast, which can happen before any data exists (all-zero
+  // matrices) and would break hover for the whole session.
+  useLayoutEffect(() => {
+    if (mesh.current) mesh.current.boundingSphere = createActivityHitSphere();
+  }, []);
 
   useEffect(() => {
     if (!mesh.current) return;
