@@ -30,3 +30,10 @@ skills-lock.json
 .idea/
 .DS_Store
 Thumbs.db
+
+# Documentation folder
+/docs/
+
+# Markdown files except README.md
+*.md
+!README.md
