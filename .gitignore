@@ -34,6 +34,8 @@ Thumbs.db
 # Documentation folder
 /docs/
 
+/agent/
+
 # Markdown files except README.md
 *.md
 !README.md
