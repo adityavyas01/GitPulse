@@ -31,11 +31,9 @@ skills-lock.json
 .DS_Store
 Thumbs.db
 
-# Documentation folder
 /docs/
-
+/data/
 /agent/
 
-# Markdown files except README.md
 *.md
 !README.md
