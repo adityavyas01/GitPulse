@@ -1,11 +1,12 @@
+import { readFileSync } from 'node:fs';
 import type { LocationRecord } from './types.js';
 
 /**
- * Static location catalog for Week 5 (ROADMAP.md — location catalog).
+ * Curated base catalog for Week 5 (ROADMAP.md — location catalog).
  * Deliberately small and deterministic; coordinates live ONLY here (ADR-005).
  * Redis-backed cache arrives with Week 6+ storage work.
  */
-export const LOCATION_CATALOG: LocationRecord[] = [
+const CURATED_CATALOG: LocationRecord[] = [
   { id: 'sfo', city: 'San Francisco', country: 'United States', latitude: 37.7749, longitude: -122.4194 },
   { id: 'nyc', city: 'New York', country: 'United States', latitude: 40.7128, longitude: -74.006 },
   { id: 'lon', city: 'London', country: 'United Kingdom', latitude: 51.5074, longitude: -0.1278 },
@@ -80,4 +81,40 @@ export const LOCATION_CATALOG: LocationRecord[] = [
   { id: 'mcz', city: 'Maceió', country: 'Brazil', latitude: -9.6498, longitude: -35.7089 },
   { id: 'bhm', city: 'Birmingham', country: 'United Kingdom', latitude: 52.4862, longitude: -1.8904 },
   { id: 'brs', city: 'Bristol', country: 'United Kingdom', latitude: 51.4545, longitude: -2.5879 }
+];
+
+// Merged 2026-10-07 from the globe location study
+// (data/Git-Pulse-Globe-Locations.json): adds study-derived places with
+// coordinates and aliases. Curated entries win on id conflict; alias strings
+// ride along in the JSON and are unused by LocationRecord consumers.
+const STUDY_CATALOG: LocationRecord[] = (
+  JSON.parse(
+    readFileSync(new URL('../../../../Git-Pulse-Globe-Locations.json', import.meta.url), 'utf8'),
+  ) as { locations: LocationRecord[] }
+).locations;
+
+// Dedupe key must fold exactly like the resolver's normalizeLocationString
+// (NFKD + diacritic strip) plus 'ł'→'l', which NFKD cannot decompose —
+// otherwise "Zürich"/"Zurich" and "Wrocław"/"Wroclaw" survive as duplicates.
+// The study list itself contains repeated city+country entries (different
+// ids, slightly different coordinates), so it is deduped on the same key,
+// first-wins.
+const dedupeKey = (l: LocationRecord): string =>
+  `${l.city}|${l.country}`
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ł/g, 'l');
+
+const seen = new Set(CURATED_CATALOG.map(dedupeKey));
+const studySeen = new Set<string>();
+
+export const LOCATION_CATALOG: LocationRecord[] = [
+  ...CURATED_CATALOG,
+  ...STUDY_CATALOG.filter((l) => {
+    const key = dedupeKey(l);
+    if (seen.has(key) || studySeen.has(key)) return false;
+    studySeen.add(key);
+    return true;
+  }),
 ];

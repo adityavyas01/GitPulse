@@ -54,7 +54,9 @@ describe('resolveLocation', () => {
   });
 
   it('never substitutes a nearby city', () => {
-    const result = resolveLocation('Mumbai');
+    // Mumbai is a real, coordinate-bearing catalog entry since the
+    // globe location study merge; use a truly unknown place instead.
+    const result = resolveLocation('Qjzxville');
     expect(result.state).toBe('MISSING');
   });
 });

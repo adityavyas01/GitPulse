@@ -47,7 +47,7 @@ describe('enrichEvents', () => {
 
   it('retains the event but does not plot on missing location — no fabrication', async () => {
     const deps = depsWith(
-      new Map([['1', { userId: 1, username: 'x', location: 'Atlantis' }]]),
+      new Map([['1', { userId: 1, username: 'x', location: 'Qjzxville' }]]),
       new Map()
     );
 
